@@ -3,10 +3,13 @@ CC=clang
 CXX=clang++
 CFLAGS=-O2 -mmacosx-version-min=11.1
 BISON=bison
+BISONFLAGS=-d
+FLEX=flex
 SRCS = book.tab.c \
+	   lex.yy.c \
 	   util.c
 
-OBJS = $(SRCS:.c=.o)
+OBJS = $(SRCS:.c=.o) lex.yy.o
 
 all: $(TARGET)
 
@@ -23,7 +26,10 @@ $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 book.tab.c: book.y
-	$(BISON) -d book.y
+	$(BISON) $(BISONFLAGS) $<
+
+lex.yy.c: book.l
+	$(FLEX) $<
 
 clean:
-	rm $(TARGET) $(OBJS) *.tab.c *.tab.h
+	rm $(TARGET) $(OBJS) book.tab.c book.tab.h lex.yy.c

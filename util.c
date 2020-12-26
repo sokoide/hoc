@@ -91,33 +91,33 @@ void yyerror(const char* s) { warning(s, (const char*)0); }
 void fpecatch() { execerror("floating point exception", (const char*)0); }
 
 // yylex
-int yylex(void) {
-    int c;
-
-    while ((c = getchar()) == ' ' || c == '\t')
-        ;
-    if (c == EOF)
-        return 0;
-    if (c == '.' || isdigit(c)) {
-        ungetc(c, stdin);
-        scanf("%lf", &yylval.val);
-        return NUMBER;
-    }
-    if (isalpha(c)) {
-        Symbol* s;
-        char sbuf[100], *p = sbuf;
-        do {
-            *p++ = c;
-        } while ((c = getchar()) != EOF && isalnum(c));
-        ungetc(c, stdin);
-        *p = '\0';
-        if ((s = lookup(sbuf)) == 0) {
-            s = install(sbuf, UNDEF, 0.0);
-        }
-        yylval.sym = s;
-        return s->type == UNDEF ? VAR : s->type;
-    }
-    if (c == '\n')
-        lineno++;
-    return c;
-}
+/* int yylex(void) { */
+/*     int c; */
+/*  */
+/*     while ((c = getchar()) == ' ' || c == '\t') */
+/*         ; */
+/*     if (c == EOF) */
+/*         return 0; */
+/*     if (c == '.' || isdigit(c)) { */
+/*         ungetc(c, stdin); */
+/*         scanf("%lf", &yylval.val); */
+/*         return NUMBER; */
+/*     } */
+/*     if (isalpha(c)) { */
+/*         Symbol* s; */
+/*         char sbuf[100], *p = sbuf; */
+/*         do { */
+/*             *p++ = c; */
+/*         } while ((c = getchar()) != EOF && isalnum(c)); */
+/*         ungetc(c, stdin); */
+/*         *p = '\0'; */
+/*         if ((s = lookup(sbuf)) == 0) { */
+/*             s = install(sbuf, UNDEF, 0.0); */
+/*         } */
+/*         yylval.sym = s; */
+/*         return s->type == UNDEF ? VAR : s->type; */
+/*     } */
+/*     if (c == '\n') */
+/*         lineno++; */
+/*     return c; */
+/* } */
