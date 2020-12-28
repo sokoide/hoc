@@ -1,16 +1,20 @@
 # hoc
 
-* High-order-calculator written in 'The unix programming environment' section 8
+* High-order-calculator written in 'The unix programming environment' chapter 8
 
 ## How to run
 
 ```sh
-make run
-1*3+4
+$ make run
+./book
 PI*2
-cos(0)
+        6.2831853
 cos(PI)
-sin(PI/2)
+        -1
+A=(1*2+40)
+B=100
+A+B
+        142
 ...
 (ctrl-d)
 ```

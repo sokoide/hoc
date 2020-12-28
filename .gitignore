@@ -1,4 +1,5 @@
 *.o
 book
 book.tab.*
+lex.yy.c
 tags

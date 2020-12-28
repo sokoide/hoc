@@ -4,14 +4,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define NSTACK 256
+#define NPROG 2000
+
 // global vars
 jmp_buf begin;
 char* progname;
 int lineno = 1;
-extern double Log(), Log10(), Exp(), Sqrt(), integer();
 
 // local vars
 static Symbol* symlist = 0;
+static Datum stack[NSTACK];
+static Datum* stackp;
+static Inst* progp;
+static Inst* pc;
+Inst prog[NPROG];
 
 // constants
 static struct {
@@ -52,7 +59,6 @@ Symbol* lookup(char* s) {
 
 Symbol* install(char* s, int t, double d) {
     Symbol* sp;
-    char* emalloc();
 
     sp = (Symbol*)emalloc(sizeof(Symbol));
     sp->name = emalloc(strlen(s) + 1); // +1 for '\0'
@@ -64,6 +70,155 @@ Symbol* install(char* s, int t, double d) {
     return sp;
 }
 
+// code generation
+void initcode() {
+    stackp = stack;
+    progp = prog;
+}
+
+int push(Datum d) {
+    if (stackp >= &stack[NSTACK])
+        execerror("stack overflow", (char*)0);
+    *stackp++ = d;
+    return 0; // ret value no used
+}
+
+Datum pop() {
+    if (stackp <= stack)
+        execerror("stack underflow", (char*)0);
+    return *--stackp;
+}
+
+Inst* code(Inst f) {
+    Inst* oprogp = progp;
+    if (progp >= &prog[NPROG])
+        execerror("program too big", (char*)0);
+    *progp++ = f;
+    return oprogp;
+}
+
+void execute(Inst* p) {
+    for (pc = p; *pc != STOP;) {
+        (*(pc++))();
+    }
+}
+
+int constpush() {
+    Datum d;
+    d.val = ((Symbol*)*pc++)->u.val;
+    push(d);
+    return 0; // ret value no used
+}
+
+int varpush() {
+    Datum d;
+    d.sym = (Symbol*)(*pc++);
+    push(d);
+    return 0; // ret value no used
+}
+
+int add() {
+    Datum d1, d2;
+    d2 = pop();
+    d1 = pop();
+    d1.val += d2.val;
+    push(d1);
+    return 0; // ret value no used
+}
+
+int sub() {
+    Datum d1, d2;
+    d2 = pop();
+    d1 = pop();
+    d1.val -= d2.val;
+    push(d1);
+    return 0; // ret value no used
+}
+
+int mul() {
+    Datum d1, d2;
+    d2 = pop();
+    d1 = pop();
+    d1.val *= d2.val;
+    push(d1);
+    return 0; // ret value no used
+}
+
+int _div() {
+    Datum d1, d2;
+    d2 = pop();
+    d1 = pop();
+    if (d2.val == 0)
+        execerror("devided by zero", (char*)0);
+    d1.val /= d2.val;
+    push(d1);
+    return 0; // ret value no used
+}
+
+int negate() {
+    Datum d1;
+    d1 = pop();
+    d1.val = -d1.val;
+    push(d1);
+    return 0; // ret value no used
+}
+
+int power() {
+    Datum d1, d2;
+    d2 = pop();
+    d1 = pop();
+    d1.val = pow(d1.val, d2.val);
+    push(d1);
+    return 0; // ret value no used
+}
+
+int mod() {
+    Datum d1, d2;
+    d2 = pop();
+    d1 = pop();
+    d1.val = (int)d1.val % (int)d2.val;
+    push(d1);
+    return 0; // ret value no used
+}
+
+int eval() {
+    Datum d;
+    d = pop();
+    if (d.sym->type == UNDEF)
+        execerror("undefined variable", d.sym->name);
+    d.val = d.sym->u.val;
+    push(d);
+    return 0; // ret value no used
+}
+
+int assign() {
+    Datum d1, d2;
+    d1 = pop();
+    d2 = pop();
+    if (d1.sym->type != VAR && d1.sym->type != UNDEF)
+        execerror("assignment to non-variable", d1.sym->name);
+    d1.sym->u.val = d2.val;
+    d1.sym->type = VAR;
+    push(d2);
+    return 0; // ret value no used
+}
+
+int print() {
+    Datum d;
+    d = pop();
+    printf("\t%.8g\n", d.val);
+    return 0; // ret value no used
+}
+
+int bltin() {
+    Datum d;
+    d = pop();
+    d.val = (*(double (*)())(*pc++))(d.val);
+    push(d);
+    return 0; // ret value no used
+}
+
+// malloc wrapper
 char* emalloc(unsigned n) {
     char* p;
     p = malloc(n);
@@ -89,35 +244,3 @@ void warning(const char* s, const char* t) {
 void yyerror(const char* s) { warning(s, (const char*)0); }
 
 void fpecatch() { execerror("floating point exception", (const char*)0); }
-
-// yylex
-/* int yylex(void) { */
-/*     int c; */
-/*  */
-/*     while ((c = getchar()) == ' ' || c == '\t') */
-/*         ; */
-/*     if (c == EOF) */
-/*         return 0; */
-/*     if (c == '.' || isdigit(c)) { */
-/*         ungetc(c, stdin); */
-/*         scanf("%lf", &yylval.val); */
-/*         return NUMBER; */
-/*     } */
-/*     if (isalpha(c)) { */
-/*         Symbol* s; */
-/*         char sbuf[100], *p = sbuf; */
-/*         do { */
-/*             *p++ = c; */
-/*         } while ((c = getchar()) != EOF && isalnum(c)); */
-/*         ungetc(c, stdin); */
-/*         *p = '\0'; */
-/*         if ((s = lookup(sbuf)) == 0) { */
-/*             s = install(sbuf, UNDEF, 0.0); */
-/*         } */
-/*         yylval.sym = s; */
-/*         return s->type == UNDEF ? VAR : s->type; */
-/*     } */
-/*     if (c == '\n') */
-/*         lineno++; */
-/*     return c; */
-/* } */
