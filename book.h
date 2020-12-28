@@ -28,10 +28,11 @@ typedef int (*Inst)();
 #define STOP (Inst)0
 
 extern void initcode();
+extern Inst prog[];
+extern Inst* progp;
 extern Inst* code(Inst f);
 extern void execute(Inst* p);
 
-extern Inst prog[];
 extern int eval();
 extern int add();
 extern int sub();
@@ -45,6 +46,18 @@ extern int bltin();
 extern int varpush();
 extern int constpush();
 extern int print();
+extern int prexpr();
+extern int le();
+extern int lt();
+extern int ge();
+extern int gt();
+extern int eq();
+extern int ne();
+extern int _and();
+extern int _or();
+extern int not();
+extern int ifcode();
+extern int whilecode();
 
 #define code2(c1, c2)                                                          \
     code(c1);                                                                  \

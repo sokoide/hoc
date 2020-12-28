@@ -1,0 +1,4 @@
+A=41
+print(A)
+B=1
+print(A+B)

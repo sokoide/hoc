@@ -1,7 +1,7 @@
 TARGET=book
 CC=clang
 CXX=clang++
-CFLAGS=-O2 -mmacosx-version-min=11.1
+CFLAGS=-O0 -g -mmacosx-version-min=11.1
 BISON=bison
 BISONFLAGS=-d
 FLEX=flex
@@ -15,6 +15,9 @@ all: $(TARGET)
 
 run: $(TARGET)
 	./$(TARGET)
+
+test: $(TARGET)
+	for testfile in $$(ls tests | sort);do echo "* running: $$testfile";cat tests/$$testfile | ./$(TARGET);done
 
 $(TARGET): $(OBJS)
 	echo "making $(TARGET)..."
