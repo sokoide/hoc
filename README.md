@@ -33,6 +33,16 @@ if (x==1) print(123) else print(456)
 123
 if (x==2) print(123) else print(456)
 456
+func fac() {
+        if ($1 <= 0) return 1 else return $1 * fac($1-1)
+}
+
+fac(1)
+fac(2)
+fac(3)
+        1
+        2
+        6
 ...
 (ctrl-d)
 ```

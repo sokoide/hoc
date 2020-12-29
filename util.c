@@ -9,7 +9,12 @@
 
 // global vars
 jmp_buf begin;
+int indef;
+char* infile;
+char** gargv;
+int gargc;
 char* progname;
+Inst* progbase = prog; // start of current subprogram
 int lineno = 1;
 Inst* progp;
 
@@ -17,8 +22,20 @@ Inst* progp;
 static Symbol* symlist = 0;
 static Datum stack[NSTACK];
 static Datum* stackp;
-static Inst* pc;
 Inst prog[NPROG];
+static Inst* pc;      // program counter
+static int returning; // 1 if return stmt seen
+
+typedef struct Frame {
+    Symbol* sp;
+    Inst* retpc;
+    Datum* argn;
+    int nargs;
+} Frame;
+
+#define NFRAME 100
+Frame frame[NFRAME];
+Frame* fp;
 
 // constants
 static struct {
@@ -46,7 +63,8 @@ static struct {
     char* name;
     int kval;
 } keywords[] = {
-    "if", IF, "else", ELSE, "while", WHILE, "print", PRINT, 0, 0,
+    "proc", PROC,    "func", FUNC,    "return", RETURN, "if", IF, "else",
+    ELSE,   "while", WHILE,  "print", PRINT,    "read", READ, 0,  0,
 };
 
 void init() {
@@ -86,8 +104,10 @@ Symbol* install(char* s, int t, double d) {
 
 // code generation
 void initcode() {
+    progp = progbase;
     stackp = stack;
-    progp = prog;
+    fp = frame;
+    returning = 0;
 }
 
 int push(Datum d) {
@@ -112,7 +132,7 @@ Inst* code(Inst f) {
 }
 
 void execute(Inst* p) {
-    for (pc = p; *pc != STOP;) {
+    for (pc = p; *pc != STOP && !returning;) {
         // printf("pc:%p\n", pc);
         (*(pc++))();
     }
@@ -323,8 +343,10 @@ int whilecode() {
         execute(savepc + 2);
         d = pop();
     }
-    pc = *((Inst**)(savepc + 1)); // next statement
-    return 0;                     // ret vaule not used
+
+    if (!returning)
+        pc = *((Inst**)(savepc + 1)); // next statement
+    return 0;                         // ret vaule not used
 }
 
 int ifcode() {
@@ -337,8 +359,9 @@ int ifcode() {
     else if (*((Inst**)(savepc + 1)))
         execute(*((Inst**)(savepc + 1))); //  else part
 
-    pc = *((Inst**)(savepc + 2)); // next statement
-    return 0;                     // ret vaule not used
+    if (!returning)
+        pc = *((Inst**)(savepc + 2)); // next statement
+    return 0;                         // ret vaule not used
 }
 
 int prexpr() {
@@ -346,6 +369,104 @@ int prexpr() {
     d = pop();
     printf("%.8g\n", d.val);
     return 0; // ret vaule not used
+}
+
+int prstr() {
+    printf("%s", (char*)*pc++);
+    return 0; // ret vaule not used
+}
+
+int varread() {
+    Datum d;
+    Symbol* var = (Symbol*)*pc++;
+Again:
+    switch (scanf("%lf", &var->u.val)) {
+    case EOF:
+        if (moreinput())
+            goto Again;
+        d.val = var->u.val = 0.0;
+        break;
+    case 0:
+        execerror("non-nubmer read into", var->name);
+        break;
+    default:
+        d.val = 1.0;
+        break;
+    }
+    var->type = VAR;
+    push(d);
+    return 0; // ret vaule not used
+}
+
+int call() {
+    Symbol* sp = (Symbol*)pc[0];
+    if (fp++ > &frame[NFRAME - 1])
+        execerror(sp->name, "call nested too deeply");
+    fp->sp = sp;
+    fp->nargs = (int)pc[1];
+    fp->retpc = pc + 2;
+    fp->argn = stackp - 1; // last argument
+    execute((Inst*)(sp->u.defn));
+    returning = 0;
+    return 0; // ret vaule not used
+}
+
+int funcret() {
+    Datum d;
+    if (fp->sp->type == PROCEDURE)
+        execerror(fp->sp->name, "(proc) returns value");
+    d = pop(); // preserve function return value
+    ret();
+    push(d);
+    return 0; // ret vaule not used
+}
+
+int procret() {
+    if (fp->sp->type == FUNCTION)
+        execerror(fp->sp->name, "(func) returns no value");
+    ret();
+    return 0; // ret vaule not used
+}
+
+int ret() {
+    int i;
+    for (i = 0; i < fp->nargs; i++)
+        pop(); // pop arguments
+    pc = (Inst*)fp->retpc;
+    --fp;
+    returning = 1;
+    return 0; // ret vaule not used
+}
+
+double* getarg() {
+    int nargs = (int)*pc++;
+    if (nargs > fp->nargs)
+        execerror(fp->sp->name, "not enough arguments");
+    return &fp->argn[nargs - fp->nargs].val;
+}
+
+void arg() {
+    Datum d;
+    d.val = *getarg();
+    push(d);
+}
+
+int argassign() {
+    Datum d;
+    d = pop();
+    push(d);
+    *getarg() = d.val;
+    return 0; // ret vaule not used
+}
+
+void define(Symbol* sp) {
+    sp->u.defn = (Inst)progbase;
+    progbase = progp;
+}
+
+void defnonly(const char* s) {
+    if (!indef)
+        execerror(s, "used outside of definition");
 }
 
 // malloc wrapper
@@ -372,5 +493,12 @@ void warning(const char* s, const char* t) {
 }
 
 void yyerror(const char* s) { warning(s, (const char*)0); }
+/* void yyerror(FILE* fp, const char* s) { warning(s, (const char*)0); } */
 
 void fpecatch() { execerror("floating point exception", (const char*)0); }
+
+int moreinput() {
+    lineno = 1;
+    return 1;
+}
+

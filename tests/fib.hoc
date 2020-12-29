@@ -1,0 +1,9 @@
+func fib() {
+	if ($1 <= 1) return $1 else return fib($1-1) + fib($1-2)
+}
+
+print "fib 1="
+fib(1)
+print "fib 10="
+fib(10)
+

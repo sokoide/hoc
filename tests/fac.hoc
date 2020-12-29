@@ -1,0 +1,10 @@
+func fac() {
+	if ($1 <= 0) return 1 else return $1 * fac($1-1)
+}
+
+print "fac(1)="
+fac(1)
+print "fac(3)="
+fac(3)
+print "fac(5)="
+fac(5)

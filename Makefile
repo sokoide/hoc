@@ -3,7 +3,8 @@ CC=clang
 CXX=clang++
 CFLAGS=-O0 -g -mmacosx-version-min=11.1
 BISON=bison
-BISONFLAGS=-d
+# -t enables bison debug if yydebug=1 in book.y
+BISONFLAGS=-d -t
 FLEX=flex
 SRCS = book.tab.c \
 	   lex.yy.c \
@@ -31,7 +32,7 @@ $(TARGET): $(OBJS)
 book.tab.c: book.y
 	$(BISON) $(BISONFLAGS) $<
 
-lex.yy.c: book.l
+lex.yy.c: book.l book.tab.h
 	$(FLEX) $<
 
 clean:
